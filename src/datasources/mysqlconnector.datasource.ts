@@ -3,13 +3,13 @@ import {juggler} from '@loopback/repository';
 
 const config = {
   name: 'mysqlconnector',
-  connector: process.env.DB_CONNECTOR,
+  connector: 'mysql',
   url: '',
-  host: process.env.HOST,
-  port: process.env.DB_PORT,
-  user: process.env.DB_USER,
-  password: process.env.DB_PSWD,
-  database: process.env.DB_NAME,
+  host: 'localhost',
+  port: 3306,
+  user: 'root',
+  password: 'bahwan4123',
+  database: 'payment_service',
 };
 
 // Observe application's life cycle to disconnect the datasource when

@@ -1,3 +1,5 @@
+const dotenv = require('dotenv').config();
+
 import {ApplicationConfig, PaymentServiceApplication} from './application';
 
 export * from './application';

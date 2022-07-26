@@ -12,5 +12,8 @@ export class WalletRepository extends DefaultCrudRepository<
     @inject('datasources.mysqlconnector') dataSource: MysqlconnectorDataSource,
   ) {
     super(Wallet, dataSource);
+    (this.modelClass as any).observe('persist', async (ctx: any) => {
+      ctx.data.updatedAt = new Date();
+    });
   }
 }

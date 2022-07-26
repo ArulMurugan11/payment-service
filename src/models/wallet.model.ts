@@ -13,7 +13,7 @@ export class Wallet extends Entity {
     type: 'number',
     required: true,
   })
-  balance: number;
+  balance: string;
 
   @property({
     type: 'number',

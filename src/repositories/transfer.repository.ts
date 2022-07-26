@@ -1,6 +1,6 @@
 import {inject} from '@loopback/core';
 import {DefaultCrudRepository} from '@loopback/repository';
-import {Error: bad inputDataSource} from '../datasources';
+import {MysqlconnectorDataSource} from '../datasources';
 import {Transfer, TransferRelations} from '../models';
 
 export class TransferRepository extends DefaultCrudRepository<
@@ -9,8 +9,11 @@ export class TransferRepository extends DefaultCrudRepository<
   TransferRelations
 > {
   constructor(
-    @inject('datasources.') dataSource: Error: bad inputDataSource,
+    @inject('datasources.mysqlconnector') dataSource: MysqlconnectorDataSource,
   ) {
     super(Transfer, dataSource);
+    (this.modelClass as any).observe('persist', async (ctx: any) => {
+      ctx.data.updatedAt = new Date();
+    });
   }
 }

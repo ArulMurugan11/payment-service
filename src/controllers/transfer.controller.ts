@@ -1,17 +1,26 @@
+import {authenticate} from '@loopback/authentication';
+import {inject} from '@loopback/core';
+import {WinstonLogger} from '@loopback/logging';
 import {repository} from '@loopback/repository';
 import {getModelSchemaRef, post, requestBody, response} from '@loopback/rest';
+import {logInvocation} from '../decorator';
+import {API_PREFIX, LoggingBindings} from '../key';
 import {Transfer} from '../models';
 import {TransferRepository, WalletRepository} from '../repositories';
 
+@authenticate('jwt')
 export class TransferController {
   constructor(
     @repository(TransferRepository)
     public transferRepository: TransferRepository,
     @repository(WalletRepository)
     public walletRepository: WalletRepository,
+    @inject(LoggingBindings.WINSTON_LOGGER)
+    private logger: WinstonLogger,
   ) {}
 
-  @post('/transfers')
+  @logInvocation()
+  @post(`${API_PREFIX}/transfers`)
   @response(200, {
     description: 'Transfer model instance',
     content: {'application/json': {schema: getModelSchemaRef(Transfer)}},
@@ -44,8 +53,6 @@ export class TransferController {
       });
       return savedTransfer;
     } else {
-      //const walletBalance = Number(wallet.balance);
-      //const transferAmount = Number(transfer.amount);
       const totalBalance = Number(wallet.balance) + Number(transfer.amount);
       const updatedWallet = String(totalBalance);
       await this.walletRepository.updateById(wallet.walletId, {
@@ -53,8 +60,6 @@ export class TransferController {
         balance: updatedWallet,
       });
       return savedTransfer;
-      // add wallet.balance with transfer.amount
-      // update existing wallet
     }
   }
 }

@@ -1,25 +1,36 @@
 import {Entity, model, property} from '@loopback/repository';
+enum TransferStatus {
+  SUCCESS = 'success',
+  FAILED = 'failed',
+  HOLD = 'hold',
+}
 
 @model()
-export class Wallet extends Entity {
+export class Transfer extends Entity {
   @property({
     type: 'number',
     id: true,
     generated: true,
   })
-  walletId?: number;
-
-  @property({
-    type: 'number',
-    required: true,
-  })
-  balance: string;
+  transferId?: number;
 
   @property({
     type: 'number',
     required: true,
   })
   userId: number;
+
+  @property({
+    type: 'string',
+    required: true,
+  })
+  amount: string;
+
+  @property({
+    type: 'string',
+    required: true,
+  })
+  medium: string;
 
   @property({
     type: 'date',
@@ -33,19 +44,33 @@ export class Wallet extends Entity {
   })
   updatedAt: string;
 
+  @property({
+    type: 'string',
+    required: true,
+    jsonSchema: {
+      enum: Object.values(TransferStatus),
+    },
+  })
+  status: string;
+
+  @property({
+    type: 'string',
+  })
+  raw?: string;
+
   // Define well-known properties here
 
   // Indexer property to allow additional data
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   [prop: string]: any;
 
-  constructor(data?: Partial<Wallet>) {
+  constructor(data?: Partial<Transfer>) {
     super(data);
   }
 }
 
-export interface WalletRelations {
+export interface TransferRelations {
   // describe navigational properties here
 }
 
-export type WalletWithRelations = Wallet & WalletRelations;
+export type TransferWithRelations = Transfer & TransferRelations;

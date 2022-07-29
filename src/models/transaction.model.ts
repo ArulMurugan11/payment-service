@@ -51,6 +51,18 @@ export class Transaction extends Entity {
   })
   bucketListId: number;
 
+  @property({
+    type: 'date',
+    required: true,
+  })
+  createdAt: string;
+
+  @property({
+    type: 'date',
+    required: true,
+  })
+  updatedAt: string;
+
   constructor(data?: Partial<Transaction>) {
     super(data);
   }

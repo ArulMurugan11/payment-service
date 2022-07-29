@@ -18,10 +18,13 @@ import {
   post,
   put,
   requestBody,
+  Response,
   response,
+  RestBindings,
 } from '@loopback/rest';
+import {groupBy} from 'lodash';
 import {logInvocation} from '../decorator';
-import {API_PREFIX, LoggingBindings} from '../key';
+import {API_PREFIX, LoggingBindings, MONTHS} from '../key';
 import {Transaction} from '../models';
 import {TransactionRepository} from '../repositories';
 
@@ -31,6 +34,8 @@ export class TransactionController {
     public transactionRepository: TransactionRepository,
     @inject(LoggingBindings.WINSTON_LOGGER)
     private logger: WinstonLogger,
+    @inject(RestBindings.Http.RESPONSE)
+    public res: Response,
   ) {}
 
   @authenticate('jwt')
@@ -83,8 +88,21 @@ export class TransactionController {
   })
   async find(
     @param.filter(Transaction) filter?: Filter<Transaction>,
-  ): Promise<Transaction[]> {
-    return this.transactionRepository.find(filter);
+  ): Promise<any> {
+    const {user} = this.res.locals;
+    const transactions = await this.transactionRepository.find({
+      where: {
+        userId: user.userId,
+        status: 'success',
+      },
+    });
+
+    const groupedTransactions = groupBy(transactions, ({createdAt}) => {
+      const date = new Date(createdAt);
+      return `${MONTHS[date.getMonth()]} ${date.getFullYear()}`;
+    });
+
+    return groupedTransactions;
   }
 
   @logInvocation()

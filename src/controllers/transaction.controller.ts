@@ -17,17 +17,20 @@ import {
   patch,
   post,
   put,
+  Request,
   requestBody,
   Response,
   response,
   RestBindings,
 } from '@loopback/rest';
-import {groupBy} from 'lodash';
+import _ from 'lodash';
 import {logInvocation} from '../decorator';
+import {FilterInterface} from '../interface/common';
 import {API_PREFIX, LoggingBindings, MONTHS} from '../key';
 import {Transaction} from '../models';
 import {TransactionRepository} from '../repositories';
-
+import {IndulgeRestService} from '../services/indulge.service';
+const qs = require('qs');
 export class TransactionController {
   constructor(
     @repository(TransactionRepository)
@@ -36,6 +39,10 @@ export class TransactionController {
     private logger: WinstonLogger,
     @inject(RestBindings.Http.RESPONSE)
     public res: Response,
+    @inject(RestBindings.Http.REQUEST)
+    public request: Request,
+    @inject('services.IndulgeService')
+    protected indulgeRestService: IndulgeRestService,
   ) {}
 
   @authenticate('jwt')
@@ -79,9 +86,12 @@ export class TransactionController {
     description: 'Array of Transaction model instances',
     content: {
       'application/json': {
+        // schema: {
+        //   type: 'array',
+        //   items: getModelSchemaRef(Transaction, {includeRelations: true}),
+        // },
         schema: {
-          type: 'array',
-          items: getModelSchemaRef(Transaction, {includeRelations: true}),
+          type: 'string',
         },
       },
     },
@@ -97,7 +107,50 @@ export class TransactionController {
       },
     });
 
-    const groupedTransactions = groupBy(transactions, ({createdAt}) => {
+    const orderIds = _.map(transactions, 'orderId');
+    const queryFilter: FilterInterface = {
+      populate: '*',
+      filters: {
+        in: orderIds,
+      },
+    };
+    const orders = await this.indulgeRestService.getOrders(
+      this.request?.headers?.authorization ?? '',
+      qs.stringify(queryFilter, {
+        encodeValuesOnly: true,
+      }),
+    );
+    //console.log('************************' + JSON.stringify(orders));
+
+    const groupedOrders = _.groupBy(orders, 'orderId');
+    // console.log('***********************' + JSON.stringify(groupedOrders));
+    const resp: {
+      order: any;
+      transaction_id?: number | undefined;
+      status: string;
+      raw_response?: string | undefined;
+      ticket_id: number;
+      userId: number;
+      orderId: number;
+      bucketListId: number;
+      createdAt: string;
+      updatedAt: string;
+    }[] = [];
+    _.each(transactions, transaction => {
+      const respTran = {
+        ...transaction,
+        order:
+          groupedOrders[transaction.orderId] &&
+          groupedOrders[transaction.orderId][0],
+      };
+      resp.push(respTran);
+    });
+    // console.log(
+    //   '***********************' +
+    //     JSON.stringify(iteratetrans) +
+    //     '*************************',
+    // );
+    const groupedTransactions = _.groupBy(resp, ({createdAt}) => {
       const date = new Date(createdAt);
       return `${MONTHS[date.getMonth()]} ${date.getFullYear()}`;
     });

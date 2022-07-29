@@ -13,7 +13,7 @@ export namespace UserService {
   //export const DATASOURCE = 'userService';
   export const baseURL = process.env.USER_SERVICE_URL;
   export const apiURL = `${baseURL}api/`;
-  export const AUTH_URL = `${apiURL}user/me`;
+  export const AUTH_URL = `${apiURL}users/me`;
   export const USER = `${apiURL}users`;
 }
 
@@ -88,3 +88,11 @@ export const MONTHS = [
   'Nov',
   'Dec',
 ];
+
+export namespace IndulgeService {
+  export const DATASOURCE = 'indulgeService';
+  export const baseURL = process.env.INDULGE_SERVICE_URL;
+  export const apiURL = `${baseURL}api/`;
+  export const ORDER_URL = `${apiURL}orders/`;
+  //export const USER = `${apiURL}users`;
+}

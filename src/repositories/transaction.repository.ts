@@ -5,7 +5,7 @@ import {Transaction, TransactionRelations} from '../models';
 
 export class TransactionRepository extends DefaultCrudRepository<
   Transaction,
-  typeof Transaction.prototype.transaction_id,
+  typeof Transaction.prototype.transactionId,
   TransactionRelations
 > {
   constructor(

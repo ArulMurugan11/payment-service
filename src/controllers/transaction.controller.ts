@@ -23,14 +23,15 @@ import {
   response,
   RestBindings,
 } from '@loopback/rest';
-import _ from 'lodash';
+import {each, groupBy, map} from 'lodash';
 import {logInvocation} from '../decorator';
-import {FilterInterface} from '../interface/common';
+import {FilterInterface, KeyValue} from '../interface/common';
 import {API_PREFIX, LoggingBindings, MONTHS} from '../key';
 import {Transaction} from '../models';
 import {TransactionRepository} from '../repositories';
 import {IndulgeRestService} from '../services/indulge.service';
 const qs = require('qs');
+
 export class TransactionController {
   constructor(
     @repository(TransactionRepository)
@@ -58,12 +59,12 @@ export class TransactionController {
         'application/json': {
           schema: getModelSchemaRef(Transaction, {
             title: 'NewTransaction',
-            exclude: ['transaction_id'],
+            exclude: ['transactionId'],
           }),
         },
       },
     })
-    transaction: Omit<Transaction, 'transaction_id'>,
+    transaction: Omit<Transaction, 'transactionId'>,
   ): Promise<Transaction> {
     return this.transactionRepository.create(transaction);
   }
@@ -98,6 +99,7 @@ export class TransactionController {
   })
   async find(
     @param.filter(Transaction) filter?: Filter<Transaction>,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   ): Promise<any> {
     const {user} = this.res.locals;
     const transactions = await this.transactionRepository.find({
@@ -107,7 +109,7 @@ export class TransactionController {
       },
     });
 
-    const orderIds = _.map(transactions, 'orderId');
+    const orderIds = map(transactions, 'orderId');
     const queryFilter: FilterInterface = {
       populate: '*',
       filters: {
@@ -122,37 +124,58 @@ export class TransactionController {
     );
     //console.log('************************' + JSON.stringify(orders));
 
-    const groupedOrders = _.groupBy(orders, 'orderId');
+    const groupedOrders = groupBy(orders, 'orderId');
     // console.log('***********************' + JSON.stringify(groupedOrders));
-    const resp: {
-      order: any;
-      transaction_id?: number | undefined;
-      status: string;
-      raw_response?: string | undefined;
-      ticket_id: number;
-      userId: number;
-      orderId: number;
-      bucketListId: number;
-      createdAt: string;
-      updatedAt: string;
-    }[] = [];
-    _.each(transactions, transaction => {
+    const resp: KeyValue[] = [];
+    each(transactions, transaction => {
+      const order = groupedOrders[transaction.orderId]?.[0];
+      const product = order?.product?.attributes ?? {};
+      const productId = order?.product?.id;
+      const categoryId = product?.category?.data?.id;
+      const category = product?.category?.data?.attributes;
       const respTran = {
         ...transaction,
-        order:
-          groupedOrders[transaction.orderId] &&
-          groupedOrders[transaction.orderId][0],
+        order: {
+          orderId: order.orderId,
+          status: order.status,
+          additionalInfo: order.additionalInfo,
+          createdAt: order.createdAt,
+          ticketId: order.ticketId,
+          conversationId: order.conversationId,
+          product: {
+            productId,
+            images: product?.images?.data,
+            price: product.price,
+            discountPrice: product.discount_price,
+            title: product.title,
+            currency: product.currency,
+            category: {
+              categoryId,
+              ...category,
+              logo: {
+                ...category?.logo?.data?.attributes,
+                id: category?.logo?.data?.id,
+              },
+            },
+          },
+        },
+        // fullOrder: order,
       };
       resp.push(respTran);
     });
-    // console.log(
-    //   '***********************' +
-    //     JSON.stringify(iteratetrans) +
-    //     '*************************',
-    // );
-    const groupedTransactions = _.groupBy(resp, ({createdAt}) => {
-      const date = new Date(createdAt);
-      return `${MONTHS[date.getMonth()]} ${date.getFullYear()}`;
+    const groupedTransactions: KeyValue = {};
+    each(resp, transaction => {
+      const date = new Date(transaction.createdAt);
+      const key = `${MONTHS[date.getMonth()]} ${date.getFullYear()}`;
+      if (!groupedTransactions[key]) {
+        groupedTransactions[key] = {
+          total: 0,
+          currencyType: transaction.currencyType,
+          data: [],
+        };
+      }
+      groupedTransactions[key].total += Number(transaction.amount);
+      groupedTransactions[key].data.push(transaction);
     });
 
     return groupedTransactions;

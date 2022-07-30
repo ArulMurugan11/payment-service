@@ -11,7 +11,7 @@ export class Transaction extends Entity {
     id: true,
     generated: true,
   })
-  transaction_id?: number;
+  transactionId: number;
 
   @property({
     type: 'string',
@@ -24,14 +24,26 @@ export class Transaction extends Entity {
 
   @property({
     type: 'string',
+    required: true,
   })
-  raw_response?: string;
+  currencyType: string;
+
+  @property({
+    type: 'string',
+    required: true,
+  })
+  amount: string;
+
+  @property({
+    type: 'string',
+  })
+  rawResponse?: string;
 
   @property({
     type: 'number',
     required: true,
   })
-  ticket_id: number;
+  ticketId: number;
 
   @property({
     type: 'number',

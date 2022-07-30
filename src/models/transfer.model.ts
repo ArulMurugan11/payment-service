@@ -30,6 +30,12 @@ export class Transfer extends Entity {
     type: 'string',
     required: true,
   })
+  currency: string;
+
+  @property({
+    type: 'string',
+    required: true,
+  })
   medium: string;
 
   @property({

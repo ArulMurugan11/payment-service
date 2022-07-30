@@ -17,14 +17,18 @@ import {
   patch,
   post,
   put,
+  Request,
   requestBody,
+  Response,
   response,
+  RestBindings,
 } from '@loopback/rest';
+import {each} from 'lodash';
 import {logInvocation} from '../decorator';
-import {API_PREFIX, LoggingBindings} from '../key';
+import {KeyValue} from '../interface/common';
+import {API_PREFIX, LoggingBindings, MONTHS} from '../key';
 import {Transfer} from '../models';
 import {TransferRepository, WalletRepository} from '../repositories';
-
 @authenticate('jwt')
 export class TransferController {
   constructor(
@@ -34,6 +38,10 @@ export class TransferController {
     public walletRepository: WalletRepository,
     @inject(LoggingBindings.WINSTON_LOGGER)
     private logger: WinstonLogger,
+    @inject(RestBindings.Http.RESPONSE)
+    public res: Response,
+    @inject(RestBindings.Http.REQUEST)
+    public request: Request,
   ) {}
 
   @logInvocation()
@@ -103,10 +111,31 @@ export class TransferController {
       },
     },
   })
-  async find(
-    @param.filter(Transfer) filter?: Filter<Transfer>,
-  ): Promise<Transfer[]> {
-    return this.transferRepository.find(filter);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  async find(@param.filter(Transfer) filter?: Filter<Transfer>): Promise<any> {
+    const {user} = this.res.locals;
+    const transfers = await this.transferRepository.find({
+      where: {
+        userId: user.userId,
+        status: 'success',
+      },
+      order: ['createdAt DESC'],
+    });
+    const groupedTransfers: KeyValue = {};
+    each(transfers, transfer => {
+      const date = new Date(transfer.createdAt);
+      const key = `${MONTHS[date.getMonth()]} ${date.getFullYear()}`;
+      if (!groupedTransfers[key]) {
+        groupedTransfers[key] = {
+          total: 0,
+          currencyType: transfer.currency,
+          data: [],
+        };
+      }
+      groupedTransfers[key].total += Number(transfer.amount);
+      groupedTransfers[key].data.push(transfer);
+    });
+    return groupedTransfers;
   }
 
   @logInvocation()

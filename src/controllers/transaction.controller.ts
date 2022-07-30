@@ -99,7 +99,7 @@ export class TransactionController {
   })
   async find(
     @param.filter(Transaction) filter?: Filter<Transaction>,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
   ): Promise<any> {
     const {user} = this.res.locals;
     const transactions = await this.transactionRepository.find({
@@ -107,6 +107,7 @@ export class TransactionController {
         userId: user.userId,
         status: 'success',
       },
+      order: ['createdAt DESC'],
     });
 
     const orderIds = map(transactions, 'orderId');

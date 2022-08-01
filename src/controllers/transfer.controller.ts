@@ -13,6 +13,7 @@ import {
   del,
   get,
   getModelSchemaRef,
+  HttpErrors,
   param,
   patch,
   post,
@@ -26,9 +27,17 @@ import {
 import {each} from 'lodash';
 import {logInvocation} from '../decorator';
 import {KeyValue} from '../interface/common';
-import {API_PREFIX, LoggingBindings, MONTHS} from '../key';
-import {Transfer} from '../models';
+import {API_PREFIX, LoggingBindings, MONTHS, PaymentGateWay} from '../key';
+import {Transfer, TransferStatus} from '../models';
 import {TransferRepository, WalletRepository} from '../repositories';
+
+const Razorpay = require('razorpay');
+const razorPay = new Razorpay({
+  // eslint-disable-next-line @typescript-eslint/naming-convention
+  key_id: PaymentGateWay.KeyId,
+  // eslint-disable-next-line @typescript-eslint/naming-convention
+  key_secret: PaymentGateWay.secret,
+});
 @authenticate('jwt')
 export class TransferController {
   constructor(
@@ -45,6 +54,64 @@ export class TransferController {
   ) {}
 
   @logInvocation()
+  @post(`${API_PREFIX}/razorpay/topup/init`)
+  @response(200, {
+    description: 'Initialize top up',
+    content: {
+      'application/json': {
+        schema: {
+          id: {
+            type: 'string',
+          },
+        },
+      },
+    },
+  })
+  async initiateTopup(
+    @requestBody({
+      content: {
+        'application/json': {
+          schema: {
+            type: 'object',
+            required: ['amount', 'currency'],
+            properties: {
+              amount: {
+                type: 'string',
+              },
+              currency: {
+                type: 'string',
+              },
+            },
+          },
+        },
+      },
+    })
+    topupData: {
+      amount: string;
+      currency: string;
+    },
+  ): Promise<{
+    id: string;
+  }> {
+    const user = this.res?.locals?.user;
+    const customer = await razorPay.customers.fetch(user.paymentGatewayId);
+    const order = await razorPay.orders.create({
+      amount: topupData.amount,
+      currency: topupData.currency,
+      notes: {
+        customerId: customer.id,
+        userId: user.userId,
+        email: user.email,
+        phone: user.phone,
+        countryCode: user.countryCode,
+      },
+    });
+    return {
+      id: order.id,
+    };
+  }
+
+  @logInvocation()
   @post(`${API_PREFIX}/transfers`)
   @response(200, {
     description: 'Transfer model instance',
@@ -54,38 +121,95 @@ export class TransferController {
     @requestBody({
       content: {
         'application/json': {
-          schema: getModelSchemaRef(Transfer, {
-            title: 'NewTransfer',
-            exclude: ['transferId'],
-          }),
+          schema: {
+            type: 'object',
+            required: ['paymentId', 'orderId', 'signature'],
+            properties: {
+              paymentId: {
+                type: 'string',
+              },
+              orderId: {
+                type: 'string',
+              },
+              signature: {
+                type: 'string',
+              },
+            },
+          },
         },
       },
     })
-    transfer: Omit<Transfer, 'transferId'>,
+    paymentGatewayResponse: {
+      signature: string;
+      orderId: string;
+      paymentId: string;
+    },
   ): Promise<Transfer> {
+    const user = this.res?.locals?.user;
+    // fetch the customer frm the razor pay
+    const customer = await razorPay.customers.fetch(user.paymentGatewayId);
+    // retrieve the payment and order detail
+    const payment = await razorPay.payments.fetch(
+      paymentGatewayResponse.paymentId,
+    );
+    const order = await razorPay.orders.fetch(paymentGatewayResponse.orderId);
+    // Check if the payment id has a transfer record
+    const existingPaymentTransfer = await this.transferRepository.findOne({
+      where: {
+        paymentId: payment.id,
+      },
+    });
+
+    if (existingPaymentTransfer) {
+      throw new HttpErrors.Forbidden('The request is already processed');
+    }
+    const date = new Date().toISOString();
+    // create transfer data
+    const transfer = {
+      status: payment.status,
+      paymentId: payment.id,
+      currency: payment.currency,
+      amount: payment.amount,
+      rawResponse: JSON.stringify({
+        order,
+        payment,
+        customerId: customer.id,
+      }),
+      userId: user.userId,
+      mode: payment.method,
+      receipt: order.receipt,
+      createdAt: date,
+      updatedAt: date,
+    };
+    // save transfer
     const savedTransfer = await this.transferRepository.create(transfer);
-    const wallet = await this.walletRepository.findOne({
+    // if success update the wallet
+    if (transfer.status !== TransferStatus.CAPTURED) {
+      throw new HttpErrors.Forbidden(
+        'Please make the payment and try accessing the api',
+      );
+    }
+    // update wallet
+    let wallet = await this.walletRepository.findOne({
       where: {
         userId: transfer.userId,
       },
     });
     if (!wallet) {
-      await this.walletRepository.create({
+      wallet = await this.walletRepository.create({
         userId: transfer.userId,
         balance: transfer.amount,
-        createdAt: transfer.createdAt,
-        updatedAt: transfer.updatedAt,
+        createdAt: savedTransfer.createdAt,
+        updatedAt: savedTransfer.updatedAt,
       });
-      return savedTransfer;
     } else {
-      const totalBalance = Number(wallet.balance) + Number(transfer.amount);
-      const updatedWallet = String(totalBalance);
+      wallet.balance = String(Number(wallet.balance) + Number(transfer.amount));
       await this.walletRepository.updateById(wallet.walletId, {
         ...wallet,
-        balance: updatedWallet,
+        balance: wallet.balance,
       });
-      return savedTransfer;
     }
+    return savedTransfer;
   }
 
   @logInvocation()

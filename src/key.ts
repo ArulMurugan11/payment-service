@@ -98,6 +98,6 @@ export namespace IndulgeService {
 }
 
 export namespace PaymentGateWay {
-  export const KeyId = 'rzp_test_8sbbL39KvCvDCb';
-  export const secret = 'Naql8HSfhs6q7wYbPg1CbtIz';
+  export const KeyId = process.env.PAYMENT_GATEWAY_KEY;
+  export const secret = process.env.PAYMENT_GATEWAY_SECRET;
 }

@@ -1,8 +1,10 @@
 import {Entity, model, property} from '@loopback/repository';
-enum TransferStatus {
-  SUCCESS = 'success',
+export enum TransferStatus {
+  CREATED = 'created',
+  AUTHORIZED = 'authorized',
+  CAPTURED = 'captured',
   FAILED = 'failed',
-  HOLD = 'hold',
+  REFUND = 'refunded',
 }
 
 @model()
@@ -22,6 +24,11 @@ export class Transfer extends Entity {
 
   @property({
     type: 'string',
+  })
+  rawResponse: string;
+
+  @property({
+    type: 'string',
     required: true,
   })
   amount: string;
@@ -30,7 +37,23 @@ export class Transfer extends Entity {
     type: 'string',
     required: true,
   })
-  medium: string;
+  currency: string;
+
+  @property({
+    type: 'string',
+  })
+  mode: string;
+
+  @property({
+    type: 'string',
+  })
+  receipt: string;
+
+  @property({
+    type: 'string',
+    required: true,
+  })
+  paymentId: string;
 
   @property({
     type: 'date',

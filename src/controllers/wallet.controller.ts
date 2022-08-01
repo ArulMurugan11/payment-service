@@ -1,3 +1,6 @@
+import {authenticate} from '@loopback/authentication';
+import {inject} from '@loopback/core';
+import {WinstonLogger} from '@loopback/logging';
 import {
   Count,
   CountSchema,
@@ -7,37 +10,22 @@ import {
   Where,
 } from '@loopback/repository';
 import {get, getModelSchemaRef, param, response} from '@loopback/rest';
+import {logInvocation} from '../decorator';
+import {API_PREFIX, LoggingBindings} from '../key';
 import {Wallet} from '../models';
 import {WalletRepository} from '../repositories';
 
+@authenticate('jwt')
 export class WalletController {
   constructor(
     @repository(WalletRepository)
     public walletRepository: WalletRepository,
+    @inject(LoggingBindings.WINSTON_LOGGER)
+    private logger: WinstonLogger,
   ) {}
 
-  // @post('/wallets')
-  // @response(200, {
-  //   description: 'Wallet model instance',
-  //   content: {'application/json': {schema: getModelSchemaRef(Wallet)}},
-  // })
-  // async create(
-  //   @requestBody({
-  //     content: {
-  //       'application/json': {
-  //         schema: getModelSchemaRef(Wallet, {
-  //           title: 'NewWallet',
-  //           exclude: ['walletId'],
-  //         }),
-  //       },
-  //     },
-  //   })
-  //   wallet: Omit<Wallet, 'walletId'>,
-  // ): Promise<Wallet> {
-  //   return this.walletRepository.create(wallet);
-  // }
-
-  @get('/wallets/count')
+  @logInvocation()
+  @get(`${API_PREFIX}/wallets/count`)
   @response(200, {
     description: 'Wallet model count',
     content: {'application/json': {schema: CountSchema}},
@@ -46,7 +34,8 @@ export class WalletController {
     return this.walletRepository.count(where);
   }
 
-  @get('/wallets')
+  @logInvocation()
+  @get(`${API_PREFIX}/wallets`)
   @response(200, {
     description: 'Array of Wallet model instances',
     content: {
@@ -62,26 +51,8 @@ export class WalletController {
     return this.walletRepository.find(filter);
   }
 
-  // @patch('/wallets')
-  // @response(200, {
-  //   description: 'Wallet PATCH success count',
-  //   content: {'application/json': {schema: CountSchema}},
-  // })
-  // async updateAll(
-  //   @requestBody({
-  //     content: {
-  //       'application/json': {
-  //         schema: getModelSchemaRef(Wallet, {partial: true}),
-  //       },
-  //     },
-  //   })
-  //   wallet: Wallet,
-  //   @param.where(Wallet) where?: Where<Wallet>,
-  // ): Promise<Count> {
-  //   return this.walletRepository.updateAll(wallet, where);
-  // }
-
-  @get('/wallets/{id}')
+  @logInvocation()
+  @get(`${API_PREFIX}/wallets/{id}`)
   @response(200, {
     description: 'Wallet model instance',
     content: {
@@ -97,41 +68,4 @@ export class WalletController {
   ): Promise<Wallet> {
     return this.walletRepository.findById(id, filter);
   }
-
-  // @patch('/wallets/{id}')
-  // @response(204, {
-  //   description: 'Wallet PATCH success',
-  // })
-  // async updateById(
-  //   @param.path.number('id') id: number,
-  //   @requestBody({
-  //     content: {
-  //       'application/json': {
-  //         schema: getModelSchemaRef(Wallet, {partial: true}),
-  //       },
-  //     },
-  //   })
-  //   wallet: Wallet,
-  // ): Promise<void> {
-  //   await this.walletRepository.updateById(id, wallet);
-  // }
-
-  // @put('/wallets/{id}')
-  // @response(204, {
-  //   description: 'Wallet PUT success',
-  // })
-  // async replaceById(
-  //   @param.path.number('id') id: number,
-  //   @requestBody() wallet: Wallet,
-  // ): Promise<void> {
-  //   await this.walletRepository.replaceById(id, wallet);
-  // }
-
-  // @del('/wallets/{id}')
-  // @response(204, {
-  //   description: 'Wallet DELETE success',
-  // })
-  // async deleteById(@param.path.number('id') id: number): Promise<void> {
-  //   await this.walletRepository.deleteById(id);
-  // }
 }

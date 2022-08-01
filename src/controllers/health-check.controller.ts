@@ -1,22 +1,25 @@
 import {inject} from '@loopback/core';
+import {WinstonLogger} from '@loopback/logging';
 import {
-  Request,
-  RestBindings,
   get,
+  Request,
   response,
   ResponseObject,
+  RestBindings,
 } from '@loopback/rest';
+import {logInvocation} from '../decorator';
+import {LoggingBindings} from '../key';
 
 /**
- * OpenAPI response for ping()
+ * OpenAPI response for health()
  */
-const PING_RESPONSE: ResponseObject = {
-  description: 'Ping Response',
+const HEALTH_RESPONSE: ResponseObject = {
+  description: 'HEALTH Response',
   content: {
     'application/json': {
       schema: {
         type: 'object',
-        title: 'PingResponse',
+        title: 'HealthResponse',
         properties: {
           greeting: {type: 'string'},
           date: {type: 'string'},
@@ -37,16 +40,21 @@ const PING_RESPONSE: ResponseObject = {
 /**
  * A simple controller to bounce back http requests
  */
-export class PingController {
-  constructor(@inject(RestBindings.Http.REQUEST) private req: Request) {}
+export class HealthController {
+  constructor(
+    @inject(RestBindings.Http.REQUEST) private req: Request,
+    @inject(LoggingBindings.WINSTON_LOGGER)
+    private logger: WinstonLogger,
+  ) {}
 
-  // Map to `GET /ping`
-  @get('/ping')
-  @response(200, PING_RESPONSE)
-  ping(): object {
+  // Map to `GET /health`
+  @logInvocation()
+  @get('/health')
+  @response(200, HEALTH_RESPONSE)
+  health(): object {
     // Reply with a greeting, the current time, the url, and request headers
     return {
-      greeting: 'Hello from LoopBack',
+      greeting: "Hello, I'm Alive",
       date: new Date(),
       url: this.req.url,
       headers: Object.assign({}, this.req.headers),

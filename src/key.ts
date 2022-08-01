@@ -96,3 +96,8 @@ export namespace IndulgeService {
   export const ORDER_URL = `${apiURL}orders/`;
   //export const USER = `${apiURL}users`;
 }
+
+export namespace PaymentGateWay {
+  export const KeyId = process.env.PAYMENT_GATEWAY_KEY;
+  export const secret = process.env.PAYMENT_GATEWAY_SECRET;
+}

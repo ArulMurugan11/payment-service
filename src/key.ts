@@ -96,3 +96,8 @@ export namespace IndulgeService {
   export const ORDER_URL = `${apiURL}orders/`;
   //export const USER = `${apiURL}users`;
 }
+
+export namespace PaymentGateWay {
+  export const KeyId = 'rzp_test_8sbbL39KvCvDCb';
+  export const secret = 'Naql8HSfhs6q7wYbPg1CbtIz';
+}

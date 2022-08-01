@@ -241,7 +241,7 @@ export class TransferController {
     const transfers = await this.transferRepository.find({
       where: {
         userId: user.userId,
-        status: 'success',
+        status: TransferStatus.CAPTURED,
       },
       order: ['createdAt DESC'],
     });

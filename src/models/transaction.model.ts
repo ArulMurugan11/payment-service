@@ -56,13 +56,7 @@ export class Transaction extends Entity {
     required: true,
   })
   orderId: number;
-
-  @property({
-    type: 'number',
-    required: true,
-  })
-  bucketListId: number;
-
+  
   @property({
     type: 'date',
     required: true,

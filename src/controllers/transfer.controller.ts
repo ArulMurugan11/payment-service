@@ -235,16 +235,20 @@ export class TransferController {
       },
     },
   })
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  async find(@param.filter(Transfer) filter?: Filter<Transfer>): Promise<any> {
-    const {user} = this.res.locals;
-    const transfers = await this.transferRepository.find({
-      where: {
-        userId: user.userId,
-        status: TransferStatus.CAPTURED,
-      },
-      order: ['createdAt DESC'],
-    });
+  async find(
+    @param.query.number('userId') userId: Number,
+    @param.filter(Transfer) filter?: Filter<Transfer>,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  ): Promise<any> {
+    // const {user} = this.res.locals;
+    const transfers = await this.transferRepository.find(filter);
+    // const transfers = await this.transferRepository.find({
+    //   where: {
+    //     userId: Number(userId) ?? user.userId,
+    //     status: TransferStatus.CAPTURED,
+    //   },
+    //   order: ['createdAt DESC'],
+    // });
     const groupedTransfers: KeyValue = {};
     each(transfers, transfer => {
       const date = new Date(transfer.createdAt);

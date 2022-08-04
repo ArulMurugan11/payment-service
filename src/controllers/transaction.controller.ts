@@ -101,14 +101,15 @@ export class TransactionController {
     @param.filter(Transaction) filter?: Filter<Transaction>,
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
   ): Promise<any> {
-    const {user} = this.res.locals;
-    const transactions = await this.transactionRepository.find({
-      where: {
-        userId: user.userId,
-        status: 'success',
-      },
-      order: ['createdAt DESC'],
-    });
+    // const {user} = this.res.locals;
+    const transactions = await this.transactionRepository.find(filter);
+    // const transactions = await this.transactionRepository.find({
+    //   where: {
+    //     userId: user.userId,
+    //     status: 'success',
+    //   },
+    //   order: ['createdAt DESC'],
+    // });
 
     const orderIds = map(transactions, 'orderId');
     const queryFilter: FilterInterface = {

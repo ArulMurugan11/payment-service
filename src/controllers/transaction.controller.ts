@@ -113,7 +113,7 @@ export class TransactionController {
 
     const orderIds = map(transactions, 'orderId');
     const queryFilter: FilterInterface = {
-      populate: '*',
+      populate: ['category', 'category.logo'],
       filters: {
         in: orderIds,
       },
@@ -124,17 +124,14 @@ export class TransactionController {
         encodeValuesOnly: true,
       }),
     );
-    //console.log('************************' + JSON.stringify(orders));
 
     const groupedOrders = groupBy(orders, 'orderId');
-    // console.log('***********************' + JSON.stringify(groupedOrders));
     const resp: KeyValue[] = [];
     each(transactions, transaction => {
       const order = groupedOrders[transaction.orderId]?.[0];
-      const product = order?.product?.attributes ?? {};
+      const product = order?.product ?? {};
       const productId = order?.product?.id;
-      const categoryId = product?.category?.data?.id;
-      const category = product?.category?.data?.attributes;
+      const category = product?.category;
       const respTran = {
         ...transaction,
         order: {
@@ -151,14 +148,8 @@ export class TransactionController {
             discountPrice: product.discount_price,
             title: product.title,
             currency: product.currency,
-            category: {
-              categoryId,
-              ...category,
-              logo: {
-                ...category?.logo?.data?.attributes,
-                id: category?.logo?.data?.id,
-              },
-            },
+            currencySymbol: '₹',
+            category,
           },
         },
         // fullOrder: order,

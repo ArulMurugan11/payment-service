@@ -7,7 +7,7 @@ import {
   Filter,
   FilterExcludingWhere,
   repository,
-  Where,
+  Where
 } from '@loopback/repository';
 import {
   del,
@@ -21,7 +21,7 @@ import {
   requestBody,
   Response,
   response,
-  RestBindings,
+  RestBindings
 } from '@loopback/rest';
 import {each, groupBy, map} from 'lodash';
 import {logInvocation} from '../decorator';
@@ -124,7 +124,6 @@ export class TransactionController {
         encodeValuesOnly: true,
       }),
     );
-
     const groupedOrders = groupBy(orders, 'orderId');
     const resp: KeyValue[] = [];
     each(transactions, transaction => {
@@ -134,6 +133,7 @@ export class TransactionController {
       const category = product?.category;
       const respTran = {
         ...transaction,
+        currencySymbol: '₹',
         order: {
           orderId: order.orderId,
           status: order.status,
@@ -143,7 +143,7 @@ export class TransactionController {
           conversationId: order.conversationId,
           product: {
             productId,
-            images: product?.images?.data,
+            images: product?.images,
             price: product.price,
             discountPrice: product.discount_price,
             title: product.title,

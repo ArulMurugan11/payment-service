@@ -7,12 +7,13 @@ import {
   Filter,
   FilterExcludingWhere,
   repository,
-  Where
+  Where,
 } from '@loopback/repository';
 import {
   del,
   get,
   getModelSchemaRef,
+  HttpErrors,
   param,
   patch,
   post,
@@ -21,14 +22,18 @@ import {
   requestBody,
   Response,
   response,
-  RestBindings
+  RestBindings,
 } from '@loopback/rest';
 import {each, groupBy, map} from 'lodash';
 import {logInvocation} from '../decorator';
 import {FilterInterface, KeyValue} from '../interface/common';
 import {API_PREFIX, LoggingBindings, MONTHS} from '../key';
 import {Transaction} from '../models';
-import {TransactionRepository} from '../repositories';
+import {
+  TransactionRepository,
+  WalletAuditRepository,
+  WalletRepository,
+} from '../repositories';
 import {IndulgeRestService} from '../services/indulge.service';
 const qs = require('qs');
 
@@ -36,6 +41,10 @@ export class TransactionController {
   constructor(
     @repository(TransactionRepository)
     public transactionRepository: TransactionRepository,
+    @repository(WalletRepository)
+    public walletRepository: WalletRepository,
+    @repository(WalletAuditRepository)
+    public WalletAuditRepository: WalletAuditRepository,
     @inject(LoggingBindings.WINSTON_LOGGER)
     private logger: WinstonLogger,
     @inject(RestBindings.Http.RESPONSE)
@@ -66,7 +75,41 @@ export class TransactionController {
     })
     transaction: Omit<Transaction, 'transactionId'>,
   ): Promise<Transaction> {
-    return this.transactionRepository.create(transaction);
+    const user = this.res?.locals?.user;
+    const walletExist = await this.walletRepository.findOne({
+      where: {
+        userId: user.userId,
+      },
+    });
+    if (!walletExist) {
+      throw new HttpErrors.Forbidden('Wallet Not Found');
+    }
+    const walletBalance = Number(walletExist.balance);
+    const transactionAmount = Number(transaction.amount);
+    if (transactionAmount > walletBalance) {
+      //throw error
+      throw new HttpErrors.BadRequest(
+        'The Transaction Amount is Exceeded your Balance',
+      );
+    }
+    const updatedBalance = String(
+      Number(walletExist.balance) - Number(transaction.amount),
+    );
+    await this.walletRepository.updateById(walletExist.walletId, {
+      ...walletExist,
+      balance: updatedBalance,
+    });
+    const savedTransaction = await this.transactionRepository.create(
+      transaction,
+    );
+    await this.WalletAuditRepository.create({
+      balance: updatedBalance,
+      transactionId: savedTransaction.transactionId,
+      userId: savedTransaction.userId,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    });
+    return savedTransaction;
   }
 
   @logInvocation()

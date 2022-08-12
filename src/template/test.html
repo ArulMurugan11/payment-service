@@ -1,0 +1,30 @@
+<div
+  id="assetPdfDownloadContent"
+  style="width: 210mm; height: 290mm; font-size: 15px; color: black !important"
+>
+  <div
+    class="formPanel"
+    style="
+      display: flex;
+      margin-left: 100px;
+      font-family: Times New Roman, Times, serif;
+    "
+  >
+    <table class="certificateDetails">
+      <tr>
+        <th>Date</th>
+        <th>Description</th>
+        <th>Withdrawn</th>
+        <th>Deposit</th>
+        <th>Balance</th>
+      </tr>
+      <tr *ngFor="let data of certificateIssuedTo">
+        <td>{{data.Date}}</td>
+        <td style="width: 140px">{{data.Description}}</td>
+        <td style="width: 180px">{{data.Withdrawn}}</td>
+        <td style="width: 140px">{{data.Deposit}}</td>
+        <td style="width: 140px">{{data.Balance}}</td>
+      </tr>
+    </table>
+  </div>
+</div>

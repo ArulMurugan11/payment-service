@@ -36,6 +36,7 @@ import {
   WalletRepository,
 } from '../repositories';
 import {IndulgeRestService} from '../services/indulge.service';
+import {htmlTemplate} from '../template/template.html';
 const qs = require('qs');
 const easyinvoice = require('easyinvoice');
 const fs = require('fs');
@@ -358,7 +359,7 @@ export class TransactionController {
       Leave this option blank to use the default template
    */
       customize: {
-        template: fs.readFileSync('template.html', 'base64'), // Must be base64 encoded html
+        template: fs.readFileSync(htmlTemplate, 'base64'), // Must be base64 encoded html
       },
     };
     easyinvoice.createInvoice(data, function (result: any) {

@@ -1,4 +1,4 @@
-<html>
+export const htmlTemplate = `<html>
   <head>
     <!--    <link rel="stylesheet" type="text/css" href="style.css">-->
   </head>
@@ -280,4 +280,4 @@
       </tbody>
     </table>
   </body>
-</html>
+</html>`;

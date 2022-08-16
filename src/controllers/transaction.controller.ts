@@ -36,14 +36,10 @@ import {
   WalletRepository,
 } from '../repositories';
 import {IndulgeRestService} from '../services/indulge.service';
-import {htmlTemplate} from '../template/template.html';
 const qs = require('qs');
 const easyinvoice = require('easyinvoice');
 const fs = require('fs');
-//const btoa = require('btoa');
-//const ejs = require('ejs');
-//const pdf = require('html-pdf');
-
+const btoa = require('btoa');
 export class TransactionController {
   constructor(
     @repository(TransactionRepository)
@@ -227,7 +223,7 @@ export class TransactionController {
   }
 
   @logInvocation()
-  @get(`${API_PREFIX}/transactions/downloadtxn`)
+  @get(`${API_PREFIX}/transactions/downloadstatement`)
   @response(200, {
     description: 'Array of Transaction model instances',
     content: {
@@ -238,38 +234,62 @@ export class TransactionController {
       },
     },
   })
-  async downloadTxn(
+  async downloadStatement(
     //@param.path.string('role') role: string,
+    @param.query.number('month') month: number,
+    @param.query.number('year') year: number,
     @param.filter(Transaction) filter?: Filter<Transaction>,
   ): Promise<any> {
     const user = this.res?.locals?.user;
     const userRole = user.roles.name;
-    console.log('///////////////////////////////');
-    console.log(user);
-    console.log(__dirname);
-    console.log('//////////////////////////');
-    // if (userRole == 'customer') {
-    // const buff = new Buffer(htmlTemplate);
-    ('use strict');
-    const buff = new Buffer(htmlTemplate);
-    const base64data = buff.toString('base64');
+    if (!month) {
+      throw new HttpErrors.BadRequest(
+        'Please Enter The Month Detail in Filter',
+      );
+    }
+    if (!year) {
+      throw new HttpErrors.BadRequest('Please Enter The Year Detail in Filter');
+    }
     const userWalletAudit = await this.WalletAuditRepository.find({
       where: {
         userId: user.userId,
       },
+      include: ['transaction'],
     });
+    const payload = [];
+    for (let index = 0; index < userWalletAudit.length; index++) {
+      const walletAudit = userWalletAudit[index];
+      const {transaction} = walletAudit;
+      const walletAuditData: object = {
+        date: walletAudit.createdAt
+          ? new Date(walletAudit.createdAt).toLocaleString()
+          : '-',
+        description: transaction?.title ?? '-',
+        withdrawn: transaction?.amount ?? '-',
+        balance: walletAudit.balance,
+      };
+      payload.push(walletAuditData);
+    }
+    async function generateStatement(data: any) {
+      var htmlTemplate = `<table><tr><th>Date</th><th>Description</th><th>Withdrawn</th><th>Balance</th></tr>`;
+      for (let index = 0; index < data.length; index++) {
+        const currentData = data[index];
+        htmlTemplate = `${htmlTemplate}<tr><td>${currentData.date}</td><td>${currentData.description}</td><td>${currentData.withdrawn}</td><td>${currentData.balance}</td></tr>`;
+      }
+      htmlTemplate = `${htmlTemplate}
+    </table>`;
+      return htmlTemplate;
+    }
+
+    const statementData = await generateStatement(payload);
+    const base64Data = btoa(statementData);
     // Our new data object, this will replace the empty object we used earlier.
-    var data = {
+    const data = {
       customize: {
-        base64data,
+        template: base64Data,
       },
     };
-    easyinvoice.createInvoice(data, function (result: any) {
-      /*
-          5.  The 'result' variable will contain our invoice as a base64 encoded PDF
-              Now let's save our invoice to our local filesystem so we can have a look!
-              We will be using the 'fs' library we imported above for this.
-      */
+    await easyinvoice.createInvoice(data, function (result: any) {
       fs.writeFileSync('Statement.pdf', result.pdf, 'base64');
     });
     return userWalletAudit;

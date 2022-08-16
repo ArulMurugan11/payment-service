@@ -1,4 +1,6 @@
-import {Entity, model, property} from '@loopback/repository';
+import {belongsTo, Entity, model, property} from '@loopback/repository';
+import {Transaction} from './transaction.model';
+import {Transfer} from './transfer.model';
 
 @model()
 export class WalletAudit extends Entity {
@@ -7,26 +9,13 @@ export class WalletAudit extends Entity {
     id: true,
     generated: true,
   })
-  id?: number;
+  id: number;
 
   @property({
     type: 'number',
     required: true,
   })
   userId: number;
-
-  @property({
-    type: 'number',
-    //required: true,
-  })
-  transactionId: number;
-
-  @property({
-    type: 'number',
-    //required: true,
-  })
-  transferId: number;
-
   @property({
     type: 'string',
     required: true,
@@ -45,6 +34,14 @@ export class WalletAudit extends Entity {
   })
   updatedAt: string;
 
+  transaction: Transaction;
+  transfer: Transfer;
+
+  @belongsTo(() => Transaction)
+  transactionId: number;
+
+  @belongsTo(() => Transfer)
+  transferId: number;
   // @belongsTo(() => User)
   // userId: number;
 

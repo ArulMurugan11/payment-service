@@ -14,6 +14,7 @@ import {
   get,
   getModelSchemaRef,
   HttpErrors,
+  oas,
   param,
   patch,
   post,
@@ -223,29 +224,22 @@ export class TransactionController {
   }
 
   @logInvocation()
-  @get(`${API_PREFIX}/transactions/downloadstatement`)
-  @response(200, {
-    description: 'Array of Transaction model instances',
-    content: {
-      'application/json': {
-        schema: {
-          type: 'string',
-        },
-      },
-    },
-  })
+  @get(`${API_PREFIX}/transactions/download-statement`)
+  @oas.response.file()
   async downloadStatement(
+    @inject(RestBindings.Http.RESPONSE)
+    res: Response,
     //@param.path.string('role') role: string,
     @param.query.number('month') month: number,
     @param.query.number('year') year: number,
     @param.filter(WalletAudit) filter?: Filter<WalletAudit>,
-  ): Promise<any> {
+  ) {
     const user = this.res?.locals?.user;
     const userRole = user.roles;
-    const customer = userRole.findIndex(function (element: any) {
+    const index = userRole.findIndex(function (element: any) {
       return element.name === 'customer';
     });
-    if (customer) {
+    if (index > -1) {
       filter = {
         ...filter,
         where: {
@@ -288,16 +282,20 @@ export class TransactionController {
 
     const statementData = await generateStatement(payload);
     const base64Data = btoa(statementData);
-    // Our new data object, this will replace the empty object we used earlier.
     const data = {
       customize: {
         template: base64Data,
       },
     };
-    await easyinvoice.createInvoice(data, function (result: any) {
-      fs.writeFileSync('Statement.pdf', result.pdf, 'base64');
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const results: any = await new Promise((resolve, reject) => {
+      easyinvoice.createInvoice(data, function (result: any) {
+        resolve(result);
+      });
     });
-    return userWalletAudit;
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', 'attachment; filename=statement.pdf');
+    res.send(Buffer.from(results.pdf, 'base64'));
   }
 
   @logInvocation()

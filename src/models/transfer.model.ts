@@ -7,68 +7,106 @@ export enum TransferStatus {
   REFUND = 'refunded',
 }
 
-@model()
+@model({
+  settings: {
+    hiddenProperties: [],
+    mysql: {table: 'transfer'},
+  },
+})
 export class Transfer extends Entity {
   @property({
     type: 'number',
     id: true,
     generated: true,
+    mysql: {
+      columnName: 'transfer_id',
+    },
   })
   transferId?: number;
 
   @property({
     type: 'number',
     required: true,
+    mysql: {
+      columnName: 'user_id',
+    },
   })
   userId: number;
 
   @property({
     type: 'string',
+    mysql: {
+      columnName: 'raw_response',
+    },
   })
   rawResponse: string;
 
   @property({
     type: 'string',
     required: true,
+    mysql: {
+      columnName: 'amount',
+    },
   })
   amount: string;
 
   @property({
     type: 'string',
     required: true,
+    mysql: {
+      columnName: 'currency',
+    },
   })
   currency: string;
 
   @property({
     type: 'string',
+    mysql: {
+      columnName: 'mode',
+    },
   })
   mode: string;
 
   @property({
     type: 'string',
+    mysql: {
+      columnName: 'receipt',
+    },
   })
   receipt: string;
 
   @property({
     type: 'string',
+    mysql: {
+      columnName: 'title',
+    },
   })
   title: string;
 
   @property({
     type: 'string',
     required: true,
+    mysql: {
+      columnName: 'payment_id',
+    },
   })
   paymentId: string;
 
   @property({
     type: 'date',
     required: true,
+    mysql: {
+      columnName: 'created_at',
+    },
   })
   createdAt: string;
 
   @property({
     type: 'date',
     required: true,
+    mysql: {
+      columnName: 'updated_at',
+    },
   })
   updatedAt: string;
 
@@ -78,11 +116,17 @@ export class Transfer extends Entity {
     jsonSchema: {
       enum: Object.values(TransferStatus),
     },
+    mysql: {
+      columnName: 'status',
+    },
   })
   status: string;
 
   @property({
     type: 'string',
+    mysql: {
+      columnName: 'raw',
+    },
   })
   raw?: string;
 

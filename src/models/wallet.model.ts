@@ -1,35 +1,55 @@
 import {Entity, model, property} from '@loopback/repository';
 
-@model()
+@model({
+  settings: {
+    hiddenProperties: [],
+    mysql: {table: 'wallet'},
+  },
+})
 export class Wallet extends Entity {
   @property({
     type: 'number',
     id: true,
     generated: true,
+    mysql: {
+      columnName: 'wallet_id',
+    },
   })
   walletId?: number;
 
   @property({
     type: 'number',
     required: true,
+    mysql: {
+      columnName: 'balance',
+    },
   })
   balance: string;
 
   @property({
     type: 'number',
     required: true,
+    mysql: {
+      columnName: 'user_id',
+    },
   })
   userId: number;
 
   @property({
     type: 'date',
     required: true,
+    mysql: {
+      columnName: 'created_at',
+    },
   })
   createdAt: string;
 
   @property({
     type: 'date',
     required: true,
+    mysql: {
+      columnName: 'updated_at',
+    },
   })
   updatedAt: string;
 

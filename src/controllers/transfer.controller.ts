@@ -29,7 +29,11 @@ import {logInvocation} from '../decorator';
 import {KeyValue} from '../interface/common';
 import {API_PREFIX, LoggingBindings, MONTHS, PaymentGateWay} from '../key';
 import {Transfer, TransferStatus} from '../models';
-import {TransferRepository, WalletRepository} from '../repositories';
+import {
+  TransferRepository,
+  WalletAuditRepository,
+  WalletRepository,
+} from '../repositories';
 
 const Razorpay = require('razorpay');
 const razorPay = new Razorpay({
@@ -45,6 +49,8 @@ export class TransferController {
     public transferRepository: TransferRepository,
     @repository(WalletRepository)
     public walletRepository: WalletRepository,
+    @repository(WalletAuditRepository)
+    public WalletAuditRepository: WalletAuditRepository,
     @inject(LoggingBindings.WINSTON_LOGGER)
     private logger: WinstonLogger,
     @inject(RestBindings.Http.RESPONSE)
@@ -209,6 +215,13 @@ export class TransferController {
         balance: wallet.balance,
       });
     }
+    await this.WalletAuditRepository.create({
+      balance: wallet.balance,
+      transferId: savedTransfer.transferId,
+      userId: savedTransfer.userId,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    });
     return savedTransfer;
   }
 

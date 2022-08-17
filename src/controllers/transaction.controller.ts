@@ -7,12 +7,13 @@ import {
   Filter,
   FilterExcludingWhere,
   repository,
-  Where
+  Where,
 } from '@loopback/repository';
 import {
   del,
   get,
   getModelSchemaRef,
+  HttpErrors,
   param,
   patch,
   post,
@@ -21,25 +22,38 @@ import {
   requestBody,
   Response,
   response,
-  RestBindings
+  RestBindings,
 } from '@loopback/rest';
 import {each, groupBy, map} from 'lodash';
 import {logInvocation} from '../decorator';
 import {FilterInterface, KeyValue} from '../interface/common';
 import {API_PREFIX, LoggingBindings, MONTHS} from '../key';
-import {Transaction} from '../models';
-import {TransactionRepository} from '../repositories';
+import {Transaction, WalletAudit} from '../models';
+import {
+  TransactionRepository,
+  TransferRepository,
+  WalletAuditRepository,
+  WalletRepository,
+} from '../repositories';
 import {IndulgeRestService} from '../services/indulge.service';
 const qs = require('qs');
-
+const easyinvoice = require('easyinvoice');
+const fs = require('fs');
+const btoa = require('btoa');
 export class TransactionController {
   constructor(
     @repository(TransactionRepository)
     public transactionRepository: TransactionRepository,
+    @repository(WalletRepository)
+    public walletRepository: WalletRepository,
+    @repository(WalletAuditRepository)
+    public WalletAuditRepository: WalletAuditRepository,
     @inject(LoggingBindings.WINSTON_LOGGER)
     private logger: WinstonLogger,
     @inject(RestBindings.Http.RESPONSE)
     public res: Response,
+    @repository(TransferRepository)
+    public transferRepository: TransferRepository,
     @inject(RestBindings.Http.REQUEST)
     public request: Request,
     @inject('services.IndulgeService')
@@ -66,7 +80,41 @@ export class TransactionController {
     })
     transaction: Omit<Transaction, 'transactionId'>,
   ): Promise<Transaction> {
-    return this.transactionRepository.create(transaction);
+    const user = this.res?.locals?.user;
+    const walletExist = await this.walletRepository.findOne({
+      where: {
+        userId: user.userId,
+      },
+    });
+    if (!walletExist) {
+      throw new HttpErrors.Forbidden('Wallet Not Found');
+    }
+    const walletBalance = Number(walletExist.balance);
+    const transactionAmount = Number(transaction.amount);
+    if (transactionAmount > walletBalance) {
+      //throw error
+      throw new HttpErrors.BadRequest(
+        'The Transaction Amount is Exceeded your Balance',
+      );
+    }
+    const updatedBalance = String(
+      Number(walletExist.balance) - Number(transaction.amount),
+    );
+    await this.walletRepository.updateById(walletExist.walletId, {
+      ...walletExist,
+      balance: updatedBalance,
+    });
+    const savedTransaction = await this.transactionRepository.create(
+      transaction,
+    );
+    await this.WalletAuditRepository.create({
+      balance: updatedBalance,
+      transactionId: savedTransaction.transactionId,
+      userId: savedTransaction.userId,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    });
+    return savedTransaction;
   }
 
   @logInvocation()
@@ -172,6 +220,84 @@ export class TransactionController {
     });
 
     return groupedTransactions;
+  }
+
+  @logInvocation()
+  @get(`${API_PREFIX}/transactions/downloadstatement`)
+  @response(200, {
+    description: 'Array of Transaction model instances',
+    content: {
+      'application/json': {
+        schema: {
+          type: 'string',
+        },
+      },
+    },
+  })
+  async downloadStatement(
+    //@param.path.string('role') role: string,
+    @param.query.number('month') month: number,
+    @param.query.number('year') year: number,
+    @param.filter(WalletAudit) filter?: Filter<WalletAudit>,
+  ): Promise<any> {
+    const user = this.res?.locals?.user;
+    const userRole = user.roles;
+    const customer = userRole.findIndex(function (element: any) {
+      return element.name === 'customer';
+    });
+    if (customer) {
+      filter = {
+        ...filter,
+        where: {
+          ...filter?.where,
+          userId: user.userId,
+        },
+      };
+    }
+    if (!month) {
+      throw new HttpErrors.BadRequest(
+        'Please Enter The Month Detail in Filter',
+      );
+    }
+    if (!year) {
+      throw new HttpErrors.BadRequest('Please Enter The Year Detail in Filter');
+    }
+    const userWalletAudit = await this.WalletAuditRepository.find(filter);
+    const payload = [];
+    for (const walletAudit of userWalletAudit) {
+      const {transaction} = walletAudit;
+      const walletAuditData: object = {
+        date: walletAudit.createdAt
+          ? new Date(walletAudit.createdAt).toLocaleString()
+          : '-',
+        description: transaction?.title ?? '-',
+        withdrawn: transaction?.amount ?? '-',
+        balance: walletAudit.balance,
+      };
+      payload.push(walletAuditData);
+    }
+    async function generateStatement(data: any) {
+      let htmlTemplate = `<table><tr><th>Date</th><th>Description</th><th>Withdrawn</th><th>Balance</th></tr>`;
+      for (const currentData of data) {
+        htmlTemplate = `${htmlTemplate}<tr><td>${currentData.date}</td><td>${currentData.description}</td><td>${currentData.withdrawn}</td><td>${currentData.balance}</td></tr>`;
+      }
+      htmlTemplate = `${htmlTemplate}
+    </table>`;
+      return htmlTemplate;
+    }
+
+    const statementData = await generateStatement(payload);
+    const base64Data = btoa(statementData);
+    // Our new data object, this will replace the empty object we used earlier.
+    const data = {
+      customize: {
+        template: base64Data,
+      },
+    };
+    await easyinvoice.createInvoice(data, function (result: any) {
+      fs.writeFileSync('Statement.pdf', result.pdf, 'base64');
+    });
+    return userWalletAudit;
   }
 
   @logInvocation()

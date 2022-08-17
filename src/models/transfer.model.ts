@@ -51,6 +51,11 @@ export class Transfer extends Entity {
 
   @property({
     type: 'string',
+  })
+  title: string;
+
+  @property({
+    type: 'string',
     required: true,
   })
   paymentId: string;

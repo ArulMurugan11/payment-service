@@ -56,7 +56,12 @@ export class Transaction extends Entity {
     required: true,
   })
   orderId: number;
-  
+
+  @property({
+    type: 'string',
+  })
+  title: string;
+
   @property({
     type: 'date',
     required: true,

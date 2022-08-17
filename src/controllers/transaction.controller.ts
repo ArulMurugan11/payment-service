@@ -28,7 +28,7 @@ import {each, groupBy, map} from 'lodash';
 import {logInvocation} from '../decorator';
 import {FilterInterface, KeyValue} from '../interface/common';
 import {API_PREFIX, LoggingBindings, MONTHS} from '../key';
-import {Transaction} from '../models';
+import {Transaction, WalletAudit} from '../models';
 import {
   TransactionRepository,
   TransferRepository,
@@ -238,10 +238,22 @@ export class TransactionController {
     //@param.path.string('role') role: string,
     @param.query.number('month') month: number,
     @param.query.number('year') year: number,
-    @param.filter(Transaction) filter?: Filter<Transaction>,
+    @param.filter(WalletAudit) filter?: Filter<WalletAudit>,
   ): Promise<any> {
     const user = this.res?.locals?.user;
-    const userRole = user.roles.name;
+    const userRole = user.roles;
+    const customer = userRole.findIndex(function (element: any) {
+      return element.name === 'customer';
+    });
+    if (customer) {
+      filter = {
+        ...filter,
+        where: {
+          ...filter?.where,
+          userId: user.userId,
+        },
+      };
+    }
     if (!month) {
       throw new HttpErrors.BadRequest(
         'Please Enter The Month Detail in Filter',
@@ -250,15 +262,9 @@ export class TransactionController {
     if (!year) {
       throw new HttpErrors.BadRequest('Please Enter The Year Detail in Filter');
     }
-    const userWalletAudit = await this.WalletAuditRepository.find({
-      where: {
-        userId: user.userId,
-      },
-      include: ['transaction'],
-    });
+    const userWalletAudit = await this.WalletAuditRepository.find(filter);
     const payload = [];
-    for (let index = 0; index < userWalletAudit.length; index++) {
-      const walletAudit = userWalletAudit[index];
+    for (const walletAudit of userWalletAudit) {
       const {transaction} = walletAudit;
       const walletAuditData: object = {
         date: walletAudit.createdAt
@@ -271,9 +277,8 @@ export class TransactionController {
       payload.push(walletAuditData);
     }
     async function generateStatement(data: any) {
-      var htmlTemplate = `<table><tr><th>Date</th><th>Description</th><th>Withdrawn</th><th>Balance</th></tr>`;
-      for (let index = 0; index < data.length; index++) {
-        const currentData = data[index];
+      let htmlTemplate = `<table><tr><th>Date</th><th>Description</th><th>Withdrawn</th><th>Balance</th></tr>`;
+      for (const currentData of data) {
         htmlTemplate = `${htmlTemplate}<tr><td>${currentData.date}</td><td>${currentData.description}</td><td>${currentData.withdrawn}</td><td>${currentData.balance}</td></tr>`;
       }
       htmlTemplate = `${htmlTemplate}

@@ -9,7 +9,13 @@ import {
   repository,
   Where,
 } from '@loopback/repository';
-import {get, getModelSchemaRef, param, response} from '@loopback/rest';
+import {
+  get,
+  getModelSchemaRef,
+  HttpErrors,
+  param,
+  response,
+} from '@loopback/rest';
 import {logInvocation} from '../decorator';
 import {API_PREFIX, LoggingBindings} from '../key';
 import {Wallet} from '../models';
@@ -67,5 +73,60 @@ export class WalletController {
     filter?: FilterExcludingWhere<Wallet>,
   ): Promise<Wallet> {
     return this.walletRepository.findById(id, filter);
+  }
+
+  // @logInvocation()
+  // @get(`${API_PREFIX}/wallet/{userId}`)
+  // @response(200, {
+  //   description: 'Array of Wallet model instances',
+  //   content: {
+  //     'application/json': {
+  //       schema: {
+  //         type: 'array',
+  //         items: getModelSchemaRef(Wallet, {includeRelations: true}),
+  //       },
+  //     },
+  //   },
+  // })
+  // async findByUserId(
+  //   @param.path.number('userId') userId: number,
+  //   @param.filter(Wallet)
+  //   filter?: Filter<Wallet>,
+  // ): Promise<Wallet> {
+  //   const userWallet = await this.walletRepository.findOne({
+  //     where: {
+  //       userId: userId,
+  //     },
+  //   });
+  //   if (!userWallet) {
+  //     throw new HttpErrors.Forbidden('Wallet Not Found');
+  //   }
+  //   return userWallet;
+  // }
+  @logInvocation()
+  @get(`${API_PREFIX}/wallet/{userId}`)
+  @response(200, {
+    description: 'Wallet model instance',
+    content: {
+      'application/json': {
+        schema: getModelSchemaRef(Wallet, {includeRelations: true}),
+      },
+    },
+  })
+  async findByUserId(
+    @param.path.number('userId') userId: number,
+    @param.filter(Wallet)
+    filter?: Filter<Wallet>,
+  ): Promise<Wallet> {
+    filter = {
+      where: {
+        userId,
+      },
+    };
+    const userWallet = await this.walletRepository.findOne(filter);
+    if (!userWallet) {
+      throw new HttpErrors.Forbidden('Wallet Not Found');
+    }
+    return userWallet;
   }
 }

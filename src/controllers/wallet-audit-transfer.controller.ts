@@ -1,22 +1,13 @@
-import {
-  repository,
-} from '@loopback/repository';
-import {
-  param,
-  get,
-  getModelSchemaRef,
-} from '@loopback/rest';
-import {
-  WalletAudit,
-  Transfer,
-} from '../models';
+import {repository} from '@loopback/repository';
+import {get, getModelSchemaRef, HttpErrors, param} from '@loopback/rest';
+import {Transfer, WalletAudit} from '../models';
 import {WalletAuditRepository} from '../repositories';
 
 export class WalletAuditTransferController {
   constructor(
     @repository(WalletAuditRepository)
     public walletAuditRepository: WalletAuditRepository,
-  ) { }
+  ) {}
 
   @get('/wallet-audits/{id}/transfer', {
     responses: {
@@ -33,6 +24,11 @@ export class WalletAuditTransferController {
   async getTransfer(
     @param.path.number('id') id: typeof WalletAudit.prototype.id,
   ): Promise<Transfer> {
-    return this.walletAuditRepository.transfer(id);
+    const transfer = await this.walletAuditRepository.transfer(id);
+    if (!transfer) {
+      throw new HttpErrors.NotFound('Transfer Not Exist');
+    }
+    transfer.amount = String(Number(transfer.amount) / 100);
+    return transfer;
   }
 }

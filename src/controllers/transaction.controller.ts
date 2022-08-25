@@ -158,7 +158,6 @@ export class TransactionController {
     //   },
     //   order: ['createdAt DESC'],
     // });
-
     const orderIds = map(transactions, 'orderId');
     const queryFilter: FilterInterface = {
       populate: ['category', 'category.logo'],
@@ -215,7 +214,7 @@ export class TransactionController {
           data: [],
         };
       }
-      groupedTransactions[key].total += Number(transaction.amount);
+      groupedTransactions[key].total += Number(transaction.amount) / 100;
       groupedTransactions[key].data.push(transaction);
     });
 
@@ -265,14 +264,18 @@ export class TransactionController {
     const userWalletAudit = await this.WalletAuditRepository.find(filter);
     const payload = [];
     for (const walletAudit of userWalletAudit) {
-      const {transaction} = walletAudit;
+      const transaction = await this.transactionRepository.findOne({
+        where: {
+          transactionId: walletAudit.transactionId,
+        },
+      });
       const walletAuditData: object = {
         date: walletAudit.createdAt
           ? new Date(walletAudit.createdAt).toLocaleString()
           : '-',
         description: transaction?.title ?? '-',
-        withdrawn: transaction?.amount ?? '-',
-        balance: walletAudit.balance,
+        withdrawn: String(Number(transaction?.amount) / 100) ?? '-',
+        balance: String(Number(walletAudit.balance) / 100),
       };
       payload.push(walletAuditData);
     }
@@ -335,7 +338,15 @@ export class TransactionController {
     @param.filter(Transaction, {exclude: 'where'})
     filter?: FilterExcludingWhere<Transaction>,
   ): Promise<Transaction> {
-    return this.transactionRepository.findById(id, filter);
+    const transactionById = await this.transactionRepository.findById(
+      id,
+      filter,
+    );
+    if (!transactionById) {
+      throw new HttpErrors.NotFound('Transaction Not Exist');
+    }
+    transactionById.amount = String(Number(transactionById.amount) / 100);
+    return transactionById;
   }
 
   @logInvocation()

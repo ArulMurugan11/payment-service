@@ -53,8 +53,13 @@ export class WalletController {
       },
     },
   })
-  async find(@param.filter(Wallet) filter?: Filter<Wallet>): Promise<Wallet[]> {
-    return this.walletRepository.find(filter);
+  async find(@param.filter(Wallet) filter?: Filter<Wallet>): Promise<Wallet> {
+    const wallets = await this.walletRepository.findOne(filter);
+    if (!wallets) {
+      throw new HttpErrors.NotFound('Wallet Not Exist');
+    }
+    wallets.balance = String(Number(wallets.balance) / 100);
+    return wallets;
   }
 
   @logInvocation()
@@ -72,7 +77,12 @@ export class WalletController {
     @param.filter(Wallet, {exclude: 'where'})
     filter?: FilterExcludingWhere<Wallet>,
   ): Promise<Wallet> {
-    return this.walletRepository.findById(id, filter);
+    const walletById = await this.walletRepository.findById(id, filter);
+    if (!walletById) {
+      throw new HttpErrors.NotFound('Wallet Not Exist');
+    }
+    walletById.balance = String(Number(walletById.balance) / 100);
+    return walletById;
   }
 
   // @logInvocation()
@@ -127,6 +137,7 @@ export class WalletController {
     if (!userWallet) {
       throw new HttpErrors.Forbidden('Wallet Not Found');
     }
+    userWallet.balance = String(Number(userWallet.balance) / 100);
     return userWallet;
   }
 }

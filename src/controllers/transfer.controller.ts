@@ -273,7 +273,7 @@ export class TransferController {
           data: [],
         };
       }
-      groupedTransfers[key].total += Number(transfer.amount);
+      groupedTransfers[key].total += Number(transfer.amount) / 100;
       groupedTransfers[key].data.push(transfer);
     });
     return groupedTransfers;
@@ -314,7 +314,12 @@ export class TransferController {
     @param.filter(Transfer, {exclude: 'where'})
     filter?: FilterExcludingWhere<Transfer>,
   ): Promise<Transfer> {
-    return this.transferRepository.findById(id, filter);
+    const transferById = await this.transferRepository.findById(id, filter);
+    if (!transferById) {
+      throw new HttpErrors.NotFound('Transfer Not Exist');
+    }
+    transferById.amount = String(Number(transferById.amount) / 100);
+    return transferById;
   }
 
   @logInvocation()
